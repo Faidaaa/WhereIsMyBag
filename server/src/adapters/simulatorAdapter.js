@@ -6,52 +6,39 @@
 const BaggageAdapter = require('./baggageAdapter');
 const { DEMO_SCENARIOS } = require('../data/scenarios');
 const { calculateRisk } = require('../services/riskService');
+const {
+  getAllScenariosMap,
+  defaultEngine,
+  sanitizeForPublic
+} = require('../services/simulationEngine');
 
 class SimulatorBaggageAdapter extends BaggageAdapter {
   constructor() {
     super();
-    this.scenarios = DEMO_SCENARIOS;
+    this.scenariosMap = getAllScenariosMap();
+    this.demoScenarios = DEMO_SCENARIOS;
     this.reports = new Map(); // referenceNumber -> reportData
   }
 
   /**
-   * Finds a scenario by tag number.
+   * Finds a scenario by tag number across all scenario sources.
    * @param {string} tagNumber
    * @returns {Object|null}
    */
   _findScenarioByTag(tagNumber) {
-    return Object.values(this.scenarios).find(
-      (s) => s.tagNumber === String(tagNumber)
-    ) || null;
+    const sanitized = String(tagNumber || '').trim();
+    return this.scenariosMap[sanitized] || null;
   }
 
   /**
    * Sanitizes an event for passenger view (CONTRACT.md Section 5).
-   * Filters out INTERNAL_ONLY events and strips internal telemetry.
+   * Delegate to simulationEngine's sanitizeForPublic.
    *
    * @param {Object} event
    * @returns {Object|null} Sanitized event or null if internal-only
    */
   _sanitizeForPassenger(event) {
-    if (!event || event.visibility === 'INTERNAL_ONLY') {
-      return null;
-    }
-
-    return {
-      id: event.id,
-      tagNumber: event.tagNumber,
-      step: event.step,
-      category: event.category,
-      status: event.status,
-      flightNumber: event.flightNumber || null,
-      airportCode: event.airportCode,
-      location: event.location,
-      timestamp: event.timestamp,
-      estimatedTimestamp: event.estimatedTimestamp || null,
-      description: event.description,
-      visibility: 'PASSENGER',
-      internalNotes: null
-    };
+    return sanitizeForPublic(event);
   }
 
   /**
@@ -174,7 +161,7 @@ class SimulatorBaggageAdapter extends BaggageAdapter {
 
   /**
    * Subscribes a client to simulation updates.
-   * Plays events sequentially (paced for demo), supporting resumption with lastEventId.
+   * Delegates to BaggageSimulationEngine.
    *
    * @param {string} tagNumber
    * @param {Function} onMessage - callback({ type, id, data })
@@ -182,82 +169,8 @@ class SimulatorBaggageAdapter extends BaggageAdapter {
    * @returns {Function} Unsubscribe function
    */
   subscribeToUpdates(tagNumber, onMessage, lastEventId) {
-    const scenario = this._findScenarioByTag(tagNumber);
-    if (!scenario) {
-      return () => {};
-    }
-
-    // Filter to passenger-facing events only
-    const passengerEvents = scenario.events
-      .map((evt) => this._sanitizeForPassenger(evt))
-      .filter(Boolean);
-
-    // If reconnecting with lastEventId, resume from the next event
-    let startIndex = 0;
-    if (lastEventId) {
-      const idx = passengerEvents.findIndex((e) => e.id === lastEventId);
-      if (idx !== -1) {
-        startIndex = idx + 1;
-      }
-    }
-
-    const eventsToPlay = passengerEvents.slice(startIndex);
-    const timeouts = [];
-    let isCancelled = false;
-
-    // Send events with an interval (1.5 seconds between events for hackathon demo feel)
-    const STEP_DELAY_MS = 1500;
-
-    eventsToPlay.forEach((event, index) => {
-      const timeout = setTimeout(() => {
-        if (isCancelled) return;
-
-        // Emit the baggage event
-        onMessage({
-          type: 'baggage-event',
-          id: event.id,
-          data: event
-        });
-
-        // Compute and emit risk alert if risk level changes or on significant milestones
-        const currentRisk = calculateRisk({
-          bagMilestone: event.step,
-          availableConnectionMinutes: scenario.riskConfig.availableConnectionMinutes,
-          minimumConnectTimeMinutes: scenario.riskConfig.minimumConnectTimeMinutes,
-          isTerminalTransfer: scenario.riskConfig.isTerminalTransfer
-        });
-
-        if (currentRisk.riskLevel === 'HIGH' || currentRisk.riskLevel === 'CRITICAL' || event.step === 'LOADED_CONNECTING_FLIGHT') {
-          onMessage({
-            type: 'risk-alert',
-            data: currentRisk
-          });
-        }
-
-        // If this is the last event, emit stream-complete
-        if (index === eventsToPlay.length - 1) {
-          const finalTimeout = setTimeout(() => {
-            if (isCancelled) return;
-            onMessage({
-              type: 'stream-complete',
-              data: {
-                status: 'FINISHED',
-                tagNumber: scenario.tagNumber
-              }
-            });
-          }, 1000);
-          timeouts.push(finalTimeout);
-        }
-      }, (index + 1) * STEP_DELAY_MS);
-
-      timeouts.push(timeout);
-    });
-
-    // Return cleanup function to cancel scheduled events
-    return () => {
-      isCancelled = true;
-      timeouts.forEach(clearTimeout);
-    };
+    const result = defaultEngine.subscribe(tagNumber, onMessage, { lastEventId });
+    return result.unsubscribe;
   }
 
   /**
@@ -299,7 +212,7 @@ class SimulatorBaggageAdapter extends BaggageAdapter {
    * Returns list of demo scenarios for meta-endpoint (Section 3.5).
    */
   getScenariosList() {
-    return Object.values(this.scenarios).map((s) => ({
+    return Object.values(this.demoScenarios).map((s) => ({
       id: s.id,
       title: s.title,
       tagNumber: s.tagNumber,
