@@ -56,6 +56,8 @@ router.get('/bag/:tag/stream', streamBaggageUpdates);
 
 // 3.4 Delayed Baggage Report Submission
 router.post('/reports/delayed', submitDelayedReport);
+// Alias: POST /api/report (singular) → same handler as /api/reports/delayed
+router.post('/report', submitDelayedReport);
 
 // 3.5 Demo Scenarios Meta-Endpoint
 router.get('/scenarios', getScenarios);

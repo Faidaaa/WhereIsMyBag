@@ -271,14 +271,18 @@ async function submitDelayedReport(req, res) {
     notes
   } = req.body || {};
 
-  // Validate token
-  const auth = validateToken(token, tagNumber);
-  if (!auth.valid) {
-    const status = auth.errorCode === 'TOKEN_BAG_MISMATCH' ? 403 : 401;
-    return sendError(res, status, auth.errorCode, auth.errorMessage);
+  // Step 1: Auth check — token must be present and not expired (401).
+  // We do a preliminary auth check without tag-scoping to catch missing/expired
+  // tokens before field validation, so we never return 400 for an unauthenticated
+  // caller. Tag-scoping (403) is checked after field validation once we have a
+  // clean tagNumber from the body.
+  const prelimAuth = validateToken(token, null);
+  if (!prelimAuth.valid && prelimAuth.errorCode !== 'TOKEN_BAG_MISMATCH') {
+    return sendError(res, 401, prelimAuth.errorCode, prelimAuth.errorMessage);
   }
 
-  // Field validations (Section 11)
+  // Step 2: Field validation (Section 11) — runs before tag-scoping so a
+  // malformed tagNumber body field always returns 400, not 403.
   const errors = [];
   if (!tagNumber || !/^\d{10}$/.test(String(tagNumber).trim())) {
     errors.push('tagNumber must be exactly 10 digits.');
@@ -312,8 +316,16 @@ async function submitDelayedReport(req, res) {
     );
   }
 
+  // Step 3: Tag-scope check — token must be authorized for this specific tag.
+  const cleanTag = String(tagNumber).trim();
+  const scopeAuth = validateToken(token, cleanTag);
+  if (!scopeAuth.valid) {
+    const status = scopeAuth.errorCode === 'TOKEN_BAG_MISMATCH' ? 403 : 401;
+    return sendError(res, status, scopeAuth.errorCode, scopeAuth.errorMessage);
+  }
+
   const reportResult = await adapter.submitDelayedReport({
-    tagNumber: String(tagNumber).trim(),
+    tagNumber: cleanTag,
     pnr: String(pnr).trim(),
     passengerSurname: String(passengerSurname).trim(),
     deliveryAddress: String(deliveryAddress).trim(),
