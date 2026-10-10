@@ -14,6 +14,14 @@ const {
   getScenarios
 } = require('../controllers/baggageController');
 
+// Health Check Endpoint
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'WhereIsMyBag API'
+  });
+});
+
 // 3.1 Verification Endpoint
 router.post('/verify', verifyPassenger);
 

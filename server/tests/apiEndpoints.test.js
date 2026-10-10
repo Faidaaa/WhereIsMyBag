@@ -28,6 +28,22 @@ describe('API Endpoints Integration Tests', () => {
     assert.strictEqual(json.status, 'ok');
   });
 
+  test('GET /api/health returns 200 ok', async () => {
+    const res = await fetch(`${baseUrl}/api/health`);
+    assert.strictEqual(res.status, 200);
+    const json = await res.json();
+    assert.strictEqual(json.status, 'ok');
+    assert.strictEqual(json.service, 'WhereIsMyBag API');
+  });
+
+  test('GET unknown endpoint returns safe 404 with ROUTE_NOT_FOUND', async () => {
+    const res = await fetch(`${baseUrl}/api/non-existent-route`);
+    assert.strictEqual(res.status, 404);
+    const json = await res.json();
+    assert.strictEqual(json.success, false);
+    assert.strictEqual(json.error.code, 'ROUTE_NOT_FOUND');
+  });
+
   test('POST /api/verify succeeds with valid credentials and issues token', async () => {
     const res = await fetch(`${baseUrl}/api/verify`, {
       method: 'POST',
