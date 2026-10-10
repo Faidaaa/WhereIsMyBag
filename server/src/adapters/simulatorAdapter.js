@@ -221,6 +221,32 @@ class SimulatorBaggageAdapter extends BaggageAdapter {
       description: s.description
     }));
   }
+
+  /**
+   * Resets all mutable demo state so scenarios can be replayed cleanly.
+   *
+   * Stops every active simulation session (clearing timers and subscribers),
+   * and clears the in-memory delayed-report store.  Fixture definitions are
+   * never modified — they are loaded at startup and remain immutable.
+   *
+   * @returns {{ stoppedSimulations: number, clearedReports: number }}
+   */
+  reset() {
+    // 1. Count sessions before stopping so the caller gets a meaningful summary
+    const activeSessionCount = defaultEngine.activeSessions.size;
+
+    // 2. Stop all active simulation timers and remove all subscribers
+    defaultEngine.stopAllSimulations();
+
+    // 3. Clear submitted delayed-baggage reports
+    const reportCount = this.reports.size;
+    this.reports.clear();
+
+    return {
+      stoppedSimulations: activeSessionCount,
+      clearedReports: reportCount
+    };
+  }
 }
 
 module.exports = SimulatorBaggageAdapter;

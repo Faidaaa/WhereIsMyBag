@@ -362,8 +362,74 @@ function escapeHtml(text) {
     .replace(/'/g, '&#039;');
 }
 
+/**
+ * POST /api/demo/reset
+ *
+ * Resets all mutable demo state so scenarios can be replayed from the start.
+ * This endpoint is intentionally undocumented in CONTRACT.md; it exists purely
+ * for hackathon judging and live demo use.
+ *
+ * Access controls (requirement 1 & 6):
+ *   - Completely blocked when NODE_ENV=production.
+ *   - Requires the X-Demo-Reset-Secret header to match the DEMO_RESET_SECRET
+ *     environment variable (default: wimb-demo-reset-2026 for local dev).
+ *
+ * What is reset (requirements 2, 3, 4):
+ *   - All active simulation sessions: timers stopped, subscribers removed.
+ *   - In-memory delayed-baggage report store: cleared.
+ *   - Fixture definitions and scenario data: NOT modified (immutable require()).
+ *   - Auth token store: NOT cleared (active browser sessions remain valid).
+ *   - Project files, .env, or any persistent config: NOT touched.
+ */
+function resetDemo(req, res) {
+  // Guard 1: Block in production entirely
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({
+      success: false,
+      error: {
+        code: 'FORBIDDEN_IN_PRODUCTION',
+        message: 'Demo reset is not available in production.',
+        details: null
+      }
+    });
+  }
+
+  // Guard 2: Verify secret header
+  const providedSecret = req.headers['x-demo-reset-secret'] || '';
+  const expectedSecret = process.env.DEMO_RESET_SECRET || 'wimb-demo-reset-2026';
+
+  if (!providedSecret || providedSecret !== expectedSecret) {
+    return res.status(401).json({
+      success: false,
+      error: {
+        code: 'INVALID_RESET_SECRET',
+        message: 'Missing or incorrect X-Demo-Reset-Secret header.',
+        details: null
+      }
+    });
+  }
+
+  // Perform reset via the shared adapter singleton exported from baggageController
+  // (lazy require avoids circular dependency; both modules share the same singleton
+  //  because Node.js module cache returns the same object on repeated require() calls)
+  const { _adapterInstance } = require('./baggageController');
+  const { stoppedSimulations, clearedReports } = _adapterInstance.reset();
+
+  return res.status(200).json({
+    success: true,
+    data: {
+      message: '[DEMO] All simulation state has been reset. Scenarios are ready to replay.',
+      stoppedSimulations,
+      clearedReports,
+      resetAt: new Date().toISOString(),
+      note: 'Fixture definitions and scenario data are preserved. Auth tokens are still valid.'
+    }
+  });
+}
+
 module.exports = {
   renderBarcodesDemoPage,
   getBarcodePng,
-  getBsmData
+  getBsmData,
+  resetDemo
 };

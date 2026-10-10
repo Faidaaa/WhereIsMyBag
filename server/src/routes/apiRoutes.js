@@ -17,7 +17,8 @@ const {
 const {
   renderBarcodesDemoPage,
   getBarcodePng,
-  getBsmData
+  getBsmData,
+  resetDemo
 } = require('../controllers/demoController');
 
 // Base /api Root & Health Check Endpoints
@@ -67,6 +68,9 @@ router.get('/demo/barcodes', renderBarcodesDemoPage);
 router.get('/barcodes/demo', renderBarcodesDemoPage);
 router.get('/barcodes/:tagNumber.png', getBarcodePng);
 router.get('/barcodes/:tagNumber', getBarcodePng);
+
+// Demo-only: POST /api/demo/reset — blocked in production, requires X-Demo-Reset-Secret header
+router.post('/demo/reset', resetDemo);
 
 // 3.7 Simulated BSM Baggage Source Message Endpoints
 router.get('/bsm', getBsmData);
