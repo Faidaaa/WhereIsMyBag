@@ -1,5 +1,7 @@
+
 import { useState } from "react";
 import { verifyBag } from "./lib/api";
+import BarcodeScanner from "./BarcodeScanner";
 import BaggageTimeline from "./BaggageTimeline";
 import "./index.css";
 
@@ -7,9 +9,11 @@ export default function App() {
   const [tag, setTag] = useState("");
   const [surname, setSurname] = useState("");
   const [pnr, setPnr] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [verified, setVerified] = useState(null);
+  const [showScanner, setShowScanner] = useState(false);
 
   async function handleVerify(event) {
     event.preventDefault();
@@ -34,14 +38,20 @@ export default function App() {
         pnr: pnr.trim().toUpperCase(),
       });
 
-      // Save the verified booking and bag tag.
       setVerified({ ...result, tag });
     } catch (err) {
       setVerified(null);
-      setError(err.message);
+      setError(err.message || "Verification failed. Please try again.");
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleScannedTag(scannedTag) {
+    setTag(scannedTag);
+    setVerified(null);
+    setError("");
+    setShowScanner(false);
   }
 
   return (
@@ -56,12 +66,32 @@ export default function App() {
         <p>Enter your bag tag and booking details to continue.</p>
 
         <form onSubmit={handleVerify}>
+          <button
+            type="button"
+            onClick={() => {
+              setError("");
+              setShowScanner(true);
+            }}
+            disabled={loading}
+          >
+            Scan Bag Tag with Camera
+          </button>
+
+          {showScanner && (
+            <BarcodeScanner
+              onDetected={handleScannedTag}
+              onClose={() => setShowScanner(false)}
+            />
+          )}
+
           <label htmlFor="tag">10-digit bag tag</label>
           <input
             id="tag"
             value={tag}
             onChange={(event) => {
-              setTag(event.target.value.replace(/\D/g, "").slice(0, 10));
+              setTag(
+                event.target.value.replace(/\D/g, "").slice(0, 10)
+              );
               setVerified(null);
               setError("");
             }}

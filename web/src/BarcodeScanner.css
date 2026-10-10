@@ -1,0 +1,60 @@
+
+.scanner-panel {
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid #dbe3ec;
+  border-radius: 14px;
+  background: #fff;
+  color: #172033;
+}
+
+.scanner-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.scanner-heading h3 {
+  margin: 0 0 6px;
+}
+
+.scanner-heading p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.scanner-heading button {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+}
+
+.scanner-video {
+  display: block;
+  width: 100%;
+  min-height: 200px;
+  max-height: 360px;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #0f172a;
+}
+
+.scanner-message {
+  margin: 12px 0 6px;
+  font-weight: 600;
+}
+
+.scanner-panel small {
+  color: #64748b;
+}
+
+@media (max-width: 480px) {
+  .scanner-panel {
+    padding: 12px;
+  }
+}
