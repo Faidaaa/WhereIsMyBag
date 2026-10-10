@@ -22,7 +22,11 @@ app.use(express.json());
 // Mount API routes under /api base path (CONTRACT.md Section 2)
 app.use('/api', apiRoutes);
 
-// Health check fallback at root /health
+// Health check fallback at root / and /health
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'WhereIsMyBag API' });
+});
+
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'WhereIsMyBag API' });
 });

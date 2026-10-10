@@ -14,13 +14,31 @@ const {
   getScenarios
 } = require('../controllers/baggageController');
 
-// Health Check Endpoint
-router.get('/health', (req, res) => {
+const {
+  renderBarcodesDemoPage,
+  getBarcodePng,
+  getBsmData
+} = require('../controllers/demoController');
+
+// Base /api Root & Health Check Endpoints
+const healthResponse = (req, res) => {
   res.status(200).json({
     status: 'ok',
-    service: 'WhereIsMyBag API'
+    service: 'WhereIsMyBag API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      demoBarcodes: '/api/demo/barcodes',
+      verify: 'POST /api/verify',
+      timeline: 'GET /api/bags/:tagNumber/timeline',
+      scenarios: '/api/scenarios',
+      bsm: '/api/bsm'
+    }
   });
-});
+};
+
+router.get('/', healthResponse);
+router.get('/health', healthResponse);
 
 // 3.1 Verification Endpoint
 router.post('/verify', verifyPassenger);
@@ -36,5 +54,15 @@ router.post('/reports/delayed', submitDelayedReport);
 
 // 3.5 Demo Scenarios Meta-Endpoint
 router.get('/scenarios', getScenarios);
+
+// 3.6 Demo Barcodes Printable Page & Image Serving
+router.get('/demo/barcodes', renderBarcodesDemoPage);
+router.get('/barcodes/demo', renderBarcodesDemoPage);
+router.get('/barcodes/:tagNumber.png', getBarcodePng);
+router.get('/barcodes/:tagNumber', getBarcodePng);
+
+// 3.7 Simulated BSM Baggage Source Message Endpoints
+router.get('/bsm', getBsmData);
+router.get('/bsm/:tagNumber', getBsmData);
 
 module.exports = router;
