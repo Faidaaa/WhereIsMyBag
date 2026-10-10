@@ -50,6 +50,9 @@ router.get('/bags/:tagNumber/timeline', getTimeline);
 
 // 3.3 Real-Time Baggage Stream (Server-Sent Events)
 router.get('/bags/:tagNumber/stream', streamBaggageUpdates);
+router.get('/bag/:tagNumber/stream', streamBaggageUpdates);
+router.get('/bags/:tag/stream', streamBaggageUpdates);
+router.get('/bag/:tag/stream', streamBaggageUpdates);
 
 // 3.4 Delayed Baggage Report Submission
 router.post('/reports/delayed', submitDelayedReport);

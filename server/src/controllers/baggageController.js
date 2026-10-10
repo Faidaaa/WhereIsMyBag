@@ -137,21 +137,27 @@ async function getTimeline(req, res) {
   });
 }
 
+const { extractToken } = require('../middleware/authMiddleware');
+
 /**
- * GET /api/bags/:tagNumber/stream?token=<verificationToken>
+ * GET /api/bags/:tagNumber/stream
+ * GET /api/bag/:tag/stream
+ *
+ * Real-Time Baggage Stream (Server-Sent Events)
+ * Reference: CONTRACT.md Section 3.3 & Section 7
  */
 async function streamBaggageUpdates(req, res) {
-  const { tagNumber } = req.params;
-  const token = req.query.token;
+  const tagNumber = req.params.tagNumber || req.params.tag || req.params.tagNo;
+  const token = extractToken(req);
 
-  // Validate auth before opening SSE stream
+  // 1. Validate token before setting headers or opening SSE stream (Section 3.3)
   const auth = validateToken(token, tagNumber);
   if (!auth.valid) {
     const status = auth.errorCode === 'TOKEN_BAG_MISMATCH' ? 403 : 401;
     return sendError(res, status, auth.errorCode, auth.errorMessage);
   }
 
-  // Verify bag exists
+  // 2. Verify baggage tag exists in system
   const bagDetails = await adapter.getBagDetails(tagNumber);
   if (!bagDetails) {
     return sendError(
@@ -162,14 +168,20 @@ async function streamBaggageUpdates(req, res) {
     );
   }
 
-  // Set SSE Headers (Section 7)
+  // 3. Set SSE Response Headers (CONTRACT.md Section 3.3 & Section 7.2)
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache, no-transform',
-    'Connection': 'keep-alive'
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no'
   });
 
-  // Send initial connected event
+  // 4. Flush headers immediately
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders();
+  }
+
+  // 5. Send initial connected event (CONTRACT.md Section 3.3.1)
   res.write(
     `event: connected\ndata: ${JSON.stringify({
       message: 'Connected to WhereIsMyBag real-time simulation stream',
@@ -177,45 +189,68 @@ async function streamBaggageUpdates(req, res) {
     })}\n\n`
   );
 
-  // Keep-alive heartbeat ping every 15s (Section 7.3)
+  // 6. Keep-alive heartbeat ping comment every 15s (CONTRACT.md Section 3.3.4 & 7.3)
+  const pingIntervalMs = Number(process.env.SSE_PING_INTERVAL_MS) || 15000;
   const pingInterval = setInterval(() => {
-    res.write(': ping\n\n');
-  }, 15000);
+    try {
+      res.write(': ping\n\n');
+    } catch (_) {}
+  }, pingIntervalMs);
 
-  // Support Last-Event-ID for reconnection (Section 7.4)
-  const lastEventId = req.headers['last-event-id'];
+  // 7. Support Last-Event-ID / lastEventId for reconnection (CONTRACT.md Section 7.4)
+  const lastEventId =
+    req.headers['last-event-id'] ||
+    (req.query ? req.query.lastEventId : null) ||
+    null;
 
-  // Subscribe to simulator updates
+  let isClosed = false;
+
+  const cleanup = () => {
+    if (isClosed) return;
+    isClosed = true;
+    clearInterval(pingInterval);
+    if (typeof unsubscribe === 'function') {
+      unsubscribe();
+    }
+  };
+
+  // 8. Subscribe to simulation engine updates
   const unsubscribe = adapter.subscribeToUpdates(
     tagNumber,
     (msg) => {
-      if (msg.type === 'baggage-event') {
-        res.write(
-          `id: ${msg.id}\nevent: baggage-event\ndata: ${JSON.stringify(
-            msg.data
-          )}\n\n`
-        );
-      } else if (msg.type === 'risk-alert') {
-        res.write(
-          `event: risk-alert\ndata: ${JSON.stringify(msg.data)}\n\n`
-        );
-      } else if (msg.type === 'stream-complete') {
-        res.write(
-          `event: stream-complete\ndata: ${JSON.stringify(msg.data)}\n\n`
-        );
+      if (isClosed) return;
+
+      try {
+        if (msg.type === 'baggage-event') {
+          res.write(
+            `id: ${msg.id}\nevent: baggage-event\ndata: ${JSON.stringify(
+              msg.data
+            )}\n\n`
+          );
+        } else if (msg.type === 'risk-alert') {
+          res.write(
+            `event: risk-alert\ndata: ${JSON.stringify(msg.data)}\n\n`
+          );
+        } else if (msg.type === 'stream-complete') {
+          res.write(
+            `event: stream-complete\ndata: ${JSON.stringify(msg.data)}\n\n`
+          );
+          cleanup();
+          res.end();
+        }
+      } catch (err) {
         cleanup();
-        res.end();
       }
     },
     lastEventId
   );
 
-  function cleanup() {
-    clearInterval(pingInterval);
-    unsubscribe();
-  }
-
+  // 9. Clean up on client disconnection (CONTRACT.md Section 7.5)
   req.on('close', () => {
+    cleanup();
+  });
+
+  req.on('error', () => {
     cleanup();
   });
 }
