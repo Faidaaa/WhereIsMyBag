@@ -7,14 +7,23 @@ const API_BASE = (
 ).replace(/\/$/, "");
 
 const STAGES = [
+  { id: "CHECKED_IN", label: "Checked in" },
   { id: "CHECK_IN", label: "Checked in" },
-  { id: "SCREENING", label: "Security screening" },
+  { id: "SECURITY_SCREENED", label: "Security screening" },
+  { id: "SECURITY", label: "Security screening" },
+  { id: "SORTED_TO_CONTAINER", label: "Sorting facility" },
   { id: "SORTING", label: "Sorting facility" },
-  { id: "CONTAINER_LOAD", label: "Container loading" },
+  { id: "LOADED_AIRCRAFT", label: "Loaded onto aircraft" },
   { id: "AIRCRAFT_LOAD", label: "Loaded onto aircraft" },
-  { id: "TRANSFER", label: "Baggage transfer" },
+  { id: "CONTAINER_LOAD", label: "Container loading" },
+  { id: "UNLOADED_AIRCRAFT", label: "Arrived at destination" },
   { id: "ARRIVED", label: "Arrived at destination" },
+  { id: "ON_CAROUSEL", label: "On baggage belt" },
   { id: "ON_BELT", label: "On baggage belt" },
+  { id: "CLAIMED", label: "Baggage claimed" },
+  { id: "TRANSFER_TIGHT_CONNECTION", label: "Baggage transfer in progress" },
+  { id: "LOADED_CONNECTING_FLIGHT", label: "Loaded onto connecting flight" },
+  { id: "TRANSFER", label: "Baggage transfer" },
   { id: "MISSED_CONNECTION", label: "Missed connection" },
 ];
 
@@ -33,9 +42,20 @@ function formatTime(timestamp) {
   });
 }
 
+function normalizeEvent(evt) {
+  if (!evt) return null;
+  const stageId = evt.step || evt.stage || evt.category || "UNKNOWN";
+  return {
+    ...evt,
+    stage: stageId,
+    timestamp: evt.timestamp || new Date().toISOString()
+  };
+}
+
 function eventKey(event) {
+  const stageVal = event.step || event.stage || event.category || "EVENT";
   return [
-    event.stage,
+    stageVal,
     event.status,
     event.timestamp,
     event.location || "",
@@ -62,6 +82,35 @@ export default function BaggageTimeline({ tag, token }) {
     setError("");
     setConnection("connecting");
 
+    // 1. Instantly fetch initial REST timeline snapshot
+    fetch(`${API_BASE}/api/bags/${encodeURIComponent(tag)}/timeline`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!active) return;
+        if (data.success && data.data && Array.isArray(data.data.timeline)) {
+          const parsedList = data.data.timeline
+            .map(normalizeEvent)
+            .filter((e) => e && (!e.visibility || e.visibility === "PASSENGER"));
+          if (parsedList.length > 0) {
+            setEvents((previous) => {
+              const map = new Map();
+              previous.concat(parsedList).forEach((item) => {
+                map.set(eventKey(item), item);
+              });
+              return Array.from(map.values()).sort(
+                (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+              );
+            });
+          }
+        }
+      })
+      .catch(() => {});
+
+    // 2. Open live SSE stream for real-time updates
     const url = new URL(
       `${API_BASE}/api/bag/${encodeURIComponent(tag)}/stream`
     );
@@ -80,15 +129,17 @@ export default function BaggageTimeline({ tag, token }) {
         if (!active) return;
 
         try {
-          const event = JSON.parse(message.data);
+          const raw = JSON.parse(message.data);
 
           // Never display internal-only baggage events to passengers.
-          if (event.visibility && event.visibility !== "PASSENGER") {
+          if (raw.visibility && raw.visibility !== "PASSENGER") {
             return;
           }
 
-          if (!event.stage || !event.timestamp) {
-            console.warn("Ignoring incomplete baggage event", event);
+          const event = normalizeEvent(raw);
+
+          if (!event || !event.timestamp) {
+            console.warn("Ignoring incomplete baggage event", raw);
             return;
           }
 
