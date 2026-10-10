@@ -4,7 +4,7 @@ import { verifyBag } from "./lib/api";
 import BarcodeScanner from "./BarcodeScanner";
 import BaggageTimeline from "./BaggageTimeline";
 import "./index.css";
-
+import MissingBagReport from "./MissingBagReport";
 export default function App() {
   const [tag, setTag] = useState("");
   const [surname, setSurname] = useState("");
@@ -147,6 +147,12 @@ export default function App() {
               token={verified.token}
             />
           </section>
+          <section className="panel">
+  <MissingBagReport
+    tag={verified.tag}
+    token={verified.token}
+  />
+</section>
         </>
       )}
     </main>
