@@ -148,11 +148,13 @@ export default function App() {
             />
           </section>
           <section className="panel">
-  <MissingBagReport
-    tag={verified.tag}
-    token={verified.token}
-  />
-</section>
+            <MissingBagReport
+              tag={verified.tag}
+              token={verified.token}
+              surname={surname}
+              pnr={pnr}
+            />
+          </section>
         </>
       )}
     </main>

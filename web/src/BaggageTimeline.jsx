@@ -76,7 +76,7 @@ export default function BaggageTimeline({ tag, token }) {
         setError("");
       };
 
-      stream.onmessage = (message) => {
+      const handleBaggageEvent = (message) => {
         if (!active) return;
 
         try {
@@ -109,6 +109,18 @@ export default function BaggageTimeline({ tag, token }) {
           console.error("Could not parse baggage SSE event.");
         }
       };
+
+      stream.onmessage = handleBaggageEvent;
+      stream.addEventListener("baggage-event", handleBaggageEvent);
+      stream.addEventListener("connected", () => {
+        if (!active) return;
+        setConnection("connected");
+        setError("");
+      });
+      stream.addEventListener("stream-complete", () => {
+        if (!active) return;
+        setConnection("connected");
+      });
 
       stream.onerror = () => {
         if (!active) return;

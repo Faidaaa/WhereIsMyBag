@@ -37,7 +37,10 @@ function extractBearerToken(req) {
  * POST /api/verify
  */
 async function verifyPassenger(req, res) {
-  const { tagNumber, surname, pnr } = req.body || {};
+  const body = req.body || {};
+  const tagNumber = body.tagNumber || body.tag;
+  const surname = body.surname || body.passengerSurname;
+  const pnr = body.pnr;
 
   // Input validation (Section 11)
   if (!tagNumber || !surname || !pnr) {
@@ -260,16 +263,15 @@ async function streamBaggageUpdates(req, res) {
  */
 async function submitDelayedReport(req, res) {
   const token = extractBearerToken(req);
-  const {
-    tagNumber,
-    pnr,
-    passengerSurname,
-    deliveryAddress,
-    contactPhone,
-    contactEmail,
-    bagDescription,
-    notes
-  } = req.body || {};
+  const body = req.body || {};
+  const tagNumber = body.tagNumber || body.tag;
+  const pnr = body.pnr;
+  const passengerSurname = body.passengerSurname || body.surname;
+  const deliveryAddress = body.deliveryAddress;
+  const contactPhone = body.contactPhone;
+  const contactEmail = body.contactEmail;
+  const bagDescription = body.bagDescription || body.description;
+  const notes = body.notes;
 
   // Step 1: Auth check — token must be present and not expired (401).
   // We do a preliminary auth check without tag-scoping to catch missing/expired
