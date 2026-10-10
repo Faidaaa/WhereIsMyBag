@@ -1,122 +1,114 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState } from "react";
+import { verifyBag } from "./lib/api";
+import "./index.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [tag, setTag] = useState("");
+  const [surname, setSurname] = useState("");
+  const [pnr, setPnr] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [verified, setVerified] = useState(null);
+
+  async function handleVerify(event) {
+    event.preventDefault();
+    setError("");
+
+    if (!/^\d{10}$/.test(tag)) {
+      setError("Enter exactly 10 digits for the demo tag.");
+      return;
+    }
+
+    if (!surname.trim() || !pnr.trim()) {
+      setError("Enter your surname and booking reference.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const result = await verifyBag({
+        tag,
+        surname: surname.trim(),
+        pnr: pnr.trim().toUpperCase(),
+      });
+
+      setVerified({ ...result, tag });
+    } catch (err) {
+      setVerified(null);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
+    <main className="app">
+      <header className="header">
+        <h1>WhereIsMyBag</h1>
+        <p>Your baggage journey, in one place.</p>
+      </header>
+
+      <section className="panel">
+        <h2>Track your baggage</h2>
+        <p>Enter your bag tag and booking details to continue.</p>
+
+        <form onSubmit={handleVerify}>
+          <label htmlFor="tag">10-digit bag tag</label>
+          <input
+            id="tag"
+            value={tag}
+            onChange={(event) => {
+              setTag(event.target.value.replace(/\D/g, "").slice(0, 10));
+              setVerified(null);
+              setError("");
+            }}
+            placeholder="0055123456"
+            inputMode="numeric"
+            autoComplete="off"
+            required
+          />
+
+          <label htmlFor="surname">Passenger surname</label>
+          <input
+            id="surname"
+            value={surname}
+            onChange={(event) => setSurname(event.target.value)}
+            placeholder="Enter surname"
+            autoComplete="family-name"
+            required
+          />
+
+          <label htmlFor="pnr">Booking reference (PNR)</label>
+          <input
+            id="pnr"
+            value={pnr}
+            onChange={(event) => setPnr(event.target.value)}
+            placeholder="AB12CD"
+            autoComplete="off"
+            required
+          />
+
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+
+          <button type="submit" disabled={loading}>
+            {loading ? "Verifying..." : "Track My Bag "}
+          </button>
+        </form>
       </section>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {verified && (
+        <section className="panel success">
+          <h2>Verification successful</h2>
+          <p>Bag tag: {verified.tag}</p>
+          <p>Your booking details have been verified.</p>
+          <p>Next: display the live baggage timeline.</p>
+        </section>
+      )}
+    </main>
+  );
 }
-
-export default App
