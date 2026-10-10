@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { verifyBag } from "./lib/api";
+import BaggageTimeline from "./BaggageTimeline";
 import "./index.css";
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
         pnr: pnr.trim().toUpperCase(),
       });
 
+      // Save the verified booking and bag tag.
       setVerified({ ...result, tag });
     } catch (err) {
       setVerified(null);
@@ -96,18 +98,26 @@ export default function App() {
           )}
 
           <button type="submit" disabled={loading}>
-            {loading ? "Verifying..." : "Track My Bag "}
+            {loading ? "Verifying..." : "Track My Bag"}
           </button>
         </form>
       </section>
 
       {verified && (
-        <section className="panel success">
-          <h2>Verification successful</h2>
-          <p>Bag tag: {verified.tag}</p>
-          <p>Your booking details have been verified.</p>
-          <p>Next: display the live baggage timeline.</p>
-        </section>
+        <>
+          <section className="panel success">
+            <h2>Verification successful</h2>
+            <p>Bag tag: {verified.tag}</p>
+            <p>Your booking details have been verified.</p>
+          </section>
+
+          <section className="panel">
+            <BaggageTimeline
+              tag={verified.tag}
+              token={verified.token}
+            />
+          </section>
+        </>
       )}
     </main>
   );
