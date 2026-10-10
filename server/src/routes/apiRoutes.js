@@ -40,8 +40,10 @@ const healthResponse = (req, res) => {
 router.get('/', healthResponse);
 router.get('/health', healthResponse);
 
-// 3.1 Verification Endpoint
-router.post('/verify', verifyPassenger);
+const { verifyRateLimiter } = require('../middleware/rateLimiter');
+
+// 3.1 Verification Endpoint (with rate limiting protection)
+router.post('/verify', verifyRateLimiter, verifyPassenger);
 
 // 3.2 Baggage Timeline Snapshot (REST Fallback)
 router.get('/bags/:tagNumber/timeline', getTimeline);

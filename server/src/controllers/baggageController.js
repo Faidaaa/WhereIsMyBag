@@ -80,12 +80,13 @@ async function verifyPassenger(req, res) {
   });
 
   if (!verificationResult.success) {
-    const status = verificationResult.errorCode === 'TAG_NOT_FOUND' ? 404 : 401;
+    // Requirement 6: Generic authentication-failure response that does not reveal
+    // whether the surname, PNR, or booking tag exists.
     return sendError(
       res,
-      status,
-      verificationResult.errorCode,
-      verificationResult.errorMessage
+      401,
+      'VERIFICATION_FAILED',
+      'Surname or PNR does not match records for this bag tag.'
     );
   }
 
