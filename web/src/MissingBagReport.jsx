@@ -75,6 +75,7 @@ export default function MissingBagReport({ tag, token, surname = "SMITH", pnr = 
         <label htmlFor="missing-bag-tag">Bag tag</label>
         <input
           id="missing-bag-tag"
+          className="dark-input"
           value={tag}
           readOnly
         />
@@ -82,6 +83,7 @@ export default function MissingBagReport({ tag, token, surname = "SMITH", pnr = 
         <label htmlFor="delivery-address">Delivery Address</label>
         <input
           id="delivery-address"
+          className="dark-input"
           value={deliveryAddress}
           onChange={(e) => setDeliveryAddress(e.target.value)}
           placeholder="456 Sunset Blvd, Los Angeles, CA 90028"
@@ -91,6 +93,7 @@ export default function MissingBagReport({ tag, token, surname = "SMITH", pnr = 
         <label htmlFor="contact-phone">Contact Phone</label>
         <input
           id="contact-phone"
+          className="dark-input"
           value={contactPhone}
           onChange={(e) => setContactPhone(e.target.value)}
           placeholder="+1 (555) 019-2834"
@@ -101,6 +104,7 @@ export default function MissingBagReport({ tag, token, surname = "SMITH", pnr = 
         <input
           id="contact-email"
           type="email"
+          className="dark-input"
           value={contactEmail}
           onChange={(e) => setContactEmail(e.target.value)}
           placeholder="passenger@example.com"
@@ -112,6 +116,7 @@ export default function MissingBagReport({ tag, token, surname = "SMITH", pnr = 
         </label>
         <textarea
           id="missing-description"
+          className="dark-input dark-textarea"
           value={description}
           onChange={(event) => {
             setDescription(event.target.value);
@@ -124,13 +129,13 @@ export default function MissingBagReport({ tag, token, surname = "SMITH", pnr = 
         />
 
         {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
+          <div className="error-banner" role="alert">
+            ⚠️ {error}
+          </div>
         )}
 
-        <button type="submit" disabled={submitting}>
-          {submitting ? "Submitting report..." : "Report Missing Baggage"}
+        <button type="submit" className="report-submit-btn" disabled={submitting}>
+          {submitting ? "Submitting Report..." : "Report Missing Baggage 🚨"}
         </button>
       </form>
     </section>
