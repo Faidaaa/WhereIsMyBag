@@ -1,0 +1,11 @@
+{
+  "name": "where-is-my-bag",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WhereIsMyBag — Real-Time Simulated Airline Baggage Tracking System",
+  "scripts": {
+    "build": "cd web && npm install && npm run build",
+    "start": "node server/src/index.js",
+    "test": "cd server && npm test"
+  }
+}
